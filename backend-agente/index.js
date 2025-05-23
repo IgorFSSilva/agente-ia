@@ -4,12 +4,12 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const fetch = require('node-fetch'); // ⬅️ Certifique-se de ter isso instalado: npm install node-fetch
 
 const app = express();
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta';
 
-// ✅ CORS configurado apenas para a URL do frontend no Vercel
 const corsOptions = {
   origin: [
     'https://agente-ia-frontend.vercel.app',
@@ -18,9 +18,7 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
-
 app.options('*', cors(corsOptions));
-
 app.use(bodyParser.json());
 
 mongoose.connect(
@@ -32,7 +30,6 @@ mongoose.connect(
     sslValidate: true
   }
 );
-
 
 const userSchema = new mongoose.Schema({
   email: String,
@@ -87,6 +84,40 @@ app.post('/api/agents', authenticate, async (req, res) => {
 app.get('/api/agents', authenticate, async (req, res) => {
   const agents = await Agent.find({ userId: req.user.id });
   res.json(agents);
+});
+
+// ✅ Novo endpoint para consultar agente (envio de pergunta)
+app.post('/api/agents/:id/query', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+
+  const agent = await Agent.findOne({ _id: id, userId: req.user.id });
+  if (!agent) {
+    return res.status(404).json({ error: 'Agente não encontrado' });
+  }
+
+  try {
+    const resposta = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${agent.openaiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: agent.prompt },
+          { role: 'user', content: message }
+        ]
+      })
+    });
+
+    const data = await resposta.json();
+    const reply = data.choices?.[0]?.message?.content;
+    res.json({ reply });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao consultar o agente' });
+  }
 });
 
 app.listen(port, () => {
