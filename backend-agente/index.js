@@ -9,7 +9,20 @@ const app = express();
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta';
 
-app.use(cors());
+// ✅ CORS configurado para aceitar chamadas do Vercel
+const allowedOrigins = [
+  'https://agente-ia-xi.vercel.app', // URL do seu frontend
+];
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permitir chamadas sem origin (como de ferramentas locais) ou das origens permitidas
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  }
+}));
+
 app.use(bodyParser.json());
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agente-ia', {
