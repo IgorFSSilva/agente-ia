@@ -121,6 +121,21 @@ app.post('/api/agents/:id/query', authenticate, async (req, res) => {
   }
 });
 
+// ✅ NOVA ROTA: Excluir agente
+app.delete('/api/agents/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const agent = await Agent.findOne({ _id: id, userId: req.user.id });
+    if (!agent) return res.status(404).json({ error: 'Agente não encontrado' });
+
+    await Agent.deleteOne({ _id: id });
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao excluir agente' });
+  }
+});
+
 // 🚀 Inicialização
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
