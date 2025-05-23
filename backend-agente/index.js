@@ -11,18 +11,28 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta';
 
 // ✅ CORS configurado apenas para a URL do frontend no Vercel
 const corsOptions = {
-  origin: 'https://agente-ia-frontend-seven.vercel.app',
-  credentials: true
+  origin: [
+    'https://agente-ia-frontend.vercel.app',
+    'https://agente-ia-frontend-seven.vercel.app'
+  ],
+  optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
+
 app.options('*', cors(corsOptions));
 
 app.use(bodyParser.json());
 
 mongoose.connect(
   process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agente-ia',
-  { useNewUrlParser: true, useUnifiedTopology: true }
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    ssl: true,
+    sslValidate: true
+  }
 );
+
 
 const userSchema = new mongoose.Schema({
   email: String,
