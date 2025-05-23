@@ -9,9 +9,13 @@ const app = express();
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta';
 
-// ✅ Libera CORS para todas as origens (em ambiente de produção você pode fechar isso depois)
-app.use(cors());
-app.options('*', cors()); 
+// ✅ CORS configurado apenas para a URL do frontend no Vercel
+const corsOptions = {
+  origin: 'https://agente-ia-frontend-seven.vercel.app',
+  credentials: true
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(bodyParser.json());
 
