@@ -9,9 +9,11 @@ function App() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
 
+  const API_BASE_URL = 'https://agente-ia-jawq.onrender.com/api';
+
   const createAgent = async () => {
     try {
-      const response = await axios.post('http://localhost:3001/api/agents', {
+      const response = await axios.post(`${API_BASE_URL}/agents`, {
         name,
         prompt,
         openaiToken: token
@@ -26,7 +28,7 @@ function App() {
   const askAgent = async () => {
     if (!agentId || !question) return;
     try {
-      const response = await axios.post(`http://localhost:3001/api/agents/${agentId}/query`, {
+      const response = await axios.post(`${API_BASE_URL}/agents/${agentId}/query`, {
         question
       });
       setAnswer(response.data.answer);
