@@ -1,4 +1,3 @@
-// index.js (backend)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -94,7 +93,29 @@ app.get('/api/agents', authenticate, async (req, res) => {
   res.json(agents);
 });
 
-// ✅ NOVA ROTA: Perguntar ao agente
+app.get('/api/agents/:id', authenticate, async (req, res) => {
+  const agent = await Agent.findOne({ _id: req.params.id, userId: req.user.id });
+  if (!agent) return res.status(404).json({ error: 'Agente não encontrado' });
+  res.json(agent);
+});
+
+app.put('/api/agents/:id', authenticate, async (req, res) => {
+  const { name, prompt, openaiToken } = req.body;
+  const agent = await Agent.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user.id },
+    { name, prompt, openaiToken },
+    { new: true }
+  );
+  if (!agent) return res.status(404).json({ error: 'Agente não encontrado ou não pertence a você' });
+  res.json({ message: 'Agente atualizado com sucesso' });
+});
+
+app.delete('/api/agents/:id', authenticate, async (req, res) => {
+  const deleted = await Agent.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+  if (!deleted) return res.status(404).json({ error: 'Agente não encontrado' });
+  res.json({ message: 'Agente excluído com sucesso' });
+});
+
 app.post('/api/agents/:id/query', authenticate, async (req, res) => {
   const { id } = req.params;
   const { question } = req.body;
@@ -118,21 +139,6 @@ app.post('/api/agents/:id/query', authenticate, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao consultar a IA' });
-  }
-});
-
-// ✅ NOVA ROTA: Excluir agente
-app.delete('/api/agents/:id', authenticate, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const agent = await Agent.findOne({ _id: id, userId: req.user.id });
-    if (!agent) return res.status(404).json({ error: 'Agente não encontrado' });
-
-    await Agent.deleteOne({ _id: id });
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Erro ao excluir agente' });
   }
 });
 
