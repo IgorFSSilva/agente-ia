@@ -1,3 +1,4 @@
+// index.js (backend atualizado com número de WhatsApp por agente)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -10,9 +11,8 @@ const app = express();
 const port = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta';
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
+app.use(cors());
+app.options('*', cors());
 app.use(bodyParser.json());
 
 mongoose.connect(
@@ -25,7 +25,6 @@ mongoose.connect(
   }
 );
 
-// 🧠 Esquemas e modelos
 const userSchema = new mongoose.Schema({
   email: String,
   passwordHash: String
@@ -36,11 +35,11 @@ const agentSchema = new mongoose.Schema({
   name: String,
   prompt: String,
   openaiToken: String,
+  whatsappNumbers: [String], // Novo campo
   userId: mongoose.Schema.Types.ObjectId
 });
 const Agent = mongoose.model('Agent', agentSchema);
 
-// 🔒 Middleware de autenticação
 function authenticate(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Token ausente' });
@@ -53,7 +52,6 @@ function authenticate(req, res, next) {
   }
 }
 
-// 📌 Rotas
 app.post('/api/register', async (req, res) => {
   const { email, password } = req.body;
   if (await User.findOne({ email }))
@@ -75,9 +73,24 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/agents', authenticate, async (req, res) => {
-  const { name, prompt, openaiToken } = req.body;
-  const agent = await new Agent({ name, prompt, openaiToken, userId: req.user.id }).save();
+  const { name, prompt, openaiToken, whatsappNumbers = [] } = req.body;
+  const agent = await new Agent({ name, prompt, openaiToken, whatsappNumbers, userId: req.user.id }).save();
   res.status(201).json({ id: agent._id });
+});
+
+app.put('/api/agents/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { name, prompt, openaiToken, whatsappNumbers = [] } = req.body;
+
+  const agent = await Agent.findOneAndUpdate(
+    { _id: id, userId: req.user.id },
+    { name, prompt, openaiToken, whatsappNumbers },
+    { new: true }
+  );
+
+  if (!agent) return res.status(404).json({ error: 'Agente não encontrado' });
+
+  res.json({ message: 'Agente atualizado com sucesso' });
 });
 
 app.get('/api/agents', authenticate, async (req, res) => {
@@ -86,26 +99,10 @@ app.get('/api/agents', authenticate, async (req, res) => {
 });
 
 app.get('/api/agents/:id', authenticate, async (req, res) => {
-  const agent = await Agent.findOne({ _id: req.params.id, userId: req.user.id });
+  const { id } = req.params;
+  const agent = await Agent.findOne({ _id: id, userId: req.user.id });
   if (!agent) return res.status(404).json({ error: 'Agente não encontrado' });
   res.json(agent);
-});
-
-app.put('/api/agents/:id', authenticate, async (req, res) => {
-  const { name, prompt, openaiToken } = req.body;
-  const agent = await Agent.findOneAndUpdate(
-    { _id: req.params.id, userId: req.user.id },
-    { name, prompt, openaiToken },
-    { new: true }
-  );
-  if (!agent) return res.status(404).json({ error: 'Agente não encontrado ou não pertence a você' });
-  res.json({ message: 'Agente atualizado com sucesso' });
-});
-
-app.delete('/api/agents/:id', authenticate, async (req, res) => {
-  const deleted = await Agent.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
-  if (!deleted) return res.status(404).json({ error: 'Agente não encontrado' });
-  res.json({ message: 'Agente excluído com sucesso' });
 });
 
 app.post('/api/agents/:id/query', authenticate, async (req, res) => {
@@ -117,7 +114,6 @@ app.post('/api/agents/:id/query', authenticate, async (req, res) => {
 
   try {
     const openai = new OpenAI({ apiKey: agent.openaiToken });
-
     const chat = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
@@ -134,7 +130,6 @@ app.post('/api/agents/:id/query', authenticate, async (req, res) => {
   }
 });
 
-// 🚀 Inicialização
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
